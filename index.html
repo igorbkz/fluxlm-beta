@@ -212,10 +212,6 @@
                 max-width: 100%;
                 height: auto;
             }
-            #history img {
-                max-width: 100%;
-                height: auto;
-            }
         }
 
         @media (min-width: 601px) {
@@ -327,7 +323,6 @@ Visual description:`,
         }
 
         let imageHistory = JSON.parse(localStorage.getItem('imageHistory')) || [];
-        let generatingImagesCount = 0;
 
         function blobToBase64(blob) {
             return new Promise((resolve, reject) => {
@@ -398,33 +393,23 @@ Visual description:`,
             const enhanceMode = document.getElementById('enhanceToggle').checked;
             const generateButton = document.getElementById('generateButton');
             
-            // Limpar o campo de entrada
+            // Desativar o botão de geração de imagem
+            generateButton.disabled = true;
+            
+            // Limpar a entrada do usuário
             document.getElementById('prompt').value = '';
 
-            // Desativar o botão de geração de imagem se 3 imagens estiverem sendo geradas
-            if (generatingImagesCount >= 3) {
-                alert('Você já está gerando 3 imagens. Por favor, aguarde.');
-                return;
-            }
-            generatingImagesCount++;
-            updateGenerateButtonState();
-
             if (enhanceMode) {
-                await enhanceAndGenerateImage(userPrompt);
+                await enhanceAndGenerateImages(userPrompt);
             } else {
-                await generateImage(userPrompt);
+                await generateImages(userPrompt);
             }
-
-            generatingImagesCount--;
-            updateGenerateButtonState();
+            
+            // Reativar o botão de geração de imagem
+            generateButton.disabled = false;
         }
 
-        function updateGenerateButtonState() {
-            const generateButton = document.getElementById('generateButton');
-            generateButton.disabled = generatingImagesCount >= 3;
-        }
-
-        async function enhanceAndGenerateImage(userPrompt) {
+        async function enhanceAndGenerateImages(userPrompt) {
             showLoading('Aprimorando o prompt...');
             
             try {
@@ -432,40 +417,44 @@ Visual description:`,
                 if (!enhancedPrompt) {
                     throw new Error('Prompt aprimorado vazio');
                 }
-                showLoading('Gerando imagem com o prompt aprimorado...');
+                showLoading('Gerando imagens com o prompt aprimorado...');
                 
-                const response = await queryImageGeneration({"inputs": enhancedPrompt});
-                const imageUrl = URL.createObjectURL(response);
-                const resultContainer = document.getElementById('result-container');
-                const resultDiv = document.getElementById('result');
-                resultContainer.style.display = 'block';
-                resultDiv.innerHTML = `
-                    <img src="${imageUrl}" alt="Imagem gerada">
-                    <p id="promptText" style="display: none;">Prompt original: ${userPrompt}<br>Prompt aprimorado (em inglês): ${enhancedPrompt}</p>
-                    <div class="prompt-toggle" onclick="togglePromptVisibility()">👁️</div>
-                `;
-                await updateHistory(response, enhancedPrompt);
+                for (let i = 0; i < 3; i++) {
+                    const response = await queryImageGeneration({"inputs": enhancedPrompt});
+                    const imageUrl = URL.createObjectURL(response);
+                    const resultContainer = document.getElementById('result-container');
+                    const resultDiv = document.getElementById('result');
+                    resultContainer.style.display = 'block';
+                    resultDiv.innerHTML += `
+                        <img src="${imageUrl}" alt="Imagem gerada">
+                        <p id="promptText" style="display: none;">Prompt original: ${userPrompt}<br>Prompt aprimorado (em inglês): ${enhancedPrompt}</p>
+                        <div class="prompt-toggle" onclick="togglePromptVisibility()">👁️</div>
+                    `;
+                    await updateHistory(response, enhancedPrompt);
+                }
             } catch (error) {
                 document.getElementById('result').innerHTML = 'Erro ao gerar a imagem. Por favor, tente novamente.';
                 console.error('Erro:', error);
             }
         }
 
-        async function generateImage(prompt) {
-            showLoading('Gerando imagem...');
+        async function generateImages(prompt) {
+            showLoading('Gerando imagens...');
             
             try {
-                const response = await queryImageGeneration({"inputs": prompt});
-                const imageUrl = URL.createObjectURL(response);
-                const resultContainer = document.getElementById('result-container');
-                const resultDiv = document.getElementById('result');
-                resultContainer.style.display = 'block';
-                resultDiv.innerHTML = `
-                    <img src="${imageUrl}" alt="Imagem gerada">
-                    <p id="promptText" style="display: none;">Prompt: ${prompt}</p>
-                    <div class="prompt-toggle" onclick="togglePromptVisibility()">👁️</div>
-                `;
-                await updateHistory(response, prompt);
+                for (let i = 0; i < 3; i++) {
+                    const response = await queryImageGeneration({"inputs": prompt});
+                    const imageUrl = URL.createObjectURL(response);
+                    const resultContainer = document.getElementById('result-container');
+                    const resultDiv = document.getElementById('result');
+                    resultContainer.style.display = 'block';
+                    resultDiv.innerHTML += `
+                        <img src="${imageUrl}" alt="Imagem gerada">
+                        <p id="promptText" style="display: none;">Prompt: ${prompt}</p>
+                        <div class="prompt-toggle" onclick="togglePromptVisibility()">👁️</div>
+                    `;
+                    await updateHistory(response, prompt);
+                }
             } catch (error) {
                 document.getElementById('result').innerHTML = 'Erro ao gerar a imagem. Por favor, tente novamente.';
                 console.error('Erro:', error);
